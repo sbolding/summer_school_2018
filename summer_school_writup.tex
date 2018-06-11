@@ -19,6 +19,7 @@
 \usepackage{comment}
 \usepackage{float}
 \usepackage{amsmath}
+\usepackage{setspace}
 
 \newcommand{\SN}{S$_N$}
 \renewcommand{\vec}[1]{\bm{#1}} %vector is bold italic
@@ -75,18 +76,107 @@
 
 
 \begin{document}
+\doublespacing
 
 \section{Introduction}
 
-We will be modeling 1D radiative transfer by performing Monte Carlo sampling of
-the underlying physical distributions.  This method differs from Implict Monte
-Carlo by treating the physical process on an event-by-event basis.  As each
-event happens, the underlying probabilities of each event occuring change,
-because of the nonlinear relation between opacities $\sigma$, temperature $T$, and the
-Planckian emission source $B(\nu,T)$ (which is proportional to temperature to
-the fourth power).  This non-linearity makes this a difficult problem to
-parallel, and the non-linearity of the sampled probability distributions results
-in physics that are difficult to resolve.
+We will be modeling 1D, frequency-dependent thermal radiative transfer problems,
+in the HEDP regime, by performing direct Monte Carlo sampling of
+the underlying physical distributions.  This method treats the absorption and
+emission of photons on an event-by-event basis to advance the simulation
+continuously in time and space, with opacities (i.e., cross sections) that are typically
+multi-group.  This differs from the Implicit Monte Carlo
+method~\cite{wollaber_review,wollaber_thesis}, which uses Monte
+Carlo to solve a linear transport equation resulting from the linearization of
+the thermal radiative transfer equations.  The two key approximations in IMC are
+the linearization of the equations (linearized about the solution at a previous
+time step), and the semi-implicit time discretization (if the non-linearities
+were converged, it would be implicit, but that is too expensive).  
+
+In the direct approach, as each event happens, the underlying probabilities of
+each event occurring change.  The probabilities change because of the nonlinear relation between opacities
+$\sigma$, temperature $T$, and the Planckian emission source $B(\nu,T)$ (which
+is proportional to $T^4$.  The change in probabilities makes
+this a difficult algorithm to parallelize, and the sampling of the non-linear
+probability distribution functions (PDFs) results in high variance relative to
+a linear Monte Carlo solution for the same dimensionality.
+
+The direct method was implemented previously by Booth~\cite{booth2011} for
+problems without spatial dependence.  The
+goal for the summer is to implement a one-spatial dimension version of the
+algorithm.  Although it will likely be practically inefficient compared to IMC, this code
+will provide a valuable verification tool for certain IMC approximations (e.g.,
+Compton scattering and potentially spatial and temporal discretization errors).  
+
+\section{Outline}
+
+A rough outline of this summmer is as follows (these are not necessarily
+sequentially dependent):
+\begin{enumerate}
+
+\item Read~\cite{booth2011} to understand the algorithm in 0D.  
+\item Understand the implicit Monte Carlo method and more importantly the
+thermal radiative transfer equations.
+Great references for this are~\cite{wollaber_review,wollaber_thesis}.  You will
+not be implementing this, but it is good to have an idea of how \emph{literally}
+everyone else solves this problem (for deterministic solution methods, cntrl-h
+Monte Carlo with S$_n$, and add "iterate to convergence" at least twice per
+page).
+\item Implement the 0D algorithm.  We were thinking python first, and then c++.
+But because of time constraints this may change towards a single language.
+\begin{itemize}
+\item 1-group
+\item Multi-group
+\item Add delta-scattering for acceleration
+\item Incorporate the ability to read real opacities using Alex's tool
+\item \textbf{Code Practices} Because of time constraints, we are
+not planning on doing rigorous unit-testing (it is also not of huge value to a
+project of this size and life-time), but if you want to test each function we
+won't stop you.  We will use version control and review your code as it comes
+in.  It would be great if we can rerun the integrated
+test problems in the future easily to verify the code still works.
+\end{itemize}
+\item Run enough problems to be convinced it is working. 
+\item We will provide you with a detailed 1D algorithm.  Try to think ahead
+towards 1D as you implement the 0D code.
+\item Implement the 1D algorithm.
+\item Verify it works by running Marshak wave problems and comparing to Jayenne
+(LANL IMC code). 
+\item Implement Compton scattering and compare to IMC with compton scattering.
+\item Explore domain copy parallelism (i.e., run the same simulation multiple
+times on different processors and average the results) for statistical
+efficiency.  Unlike typical linear Monte Carlo simulations, for the same number of histories you
+will not get the same sample variance in a domain-copy simulation as if a single
+simulation were ran.
+However, at sufficiently high history counts, histories may become independent enough that
+the benefit is sufficient to justify this trivial approach.
+\end{enumerate}
+
+As we have never hosted students from the summer school before and don't know
+exactly how much time you will have, if we don't make
+it to this point, that is OK.  However, if you guys are rock stars, then the
+following stretch goals should be interesting:
+
+\begin{itemize}
+
+\item Try non-analog diffusion-approximation acceleration.
+\item Compare point-wise re-emission to a linear spatial dependence.  This will
+be insanely memory intensive and increase variance greatly, but it will be useful to show that linear is
+good enough in most cases for a smaller set of problems.  
+\item We could incorporate exponential spatial discretizations for certain
+regions, although everyone could do this and doesn't because it is annoying and
+doesn't usually matter.
+\item Incorporate GPU acceleration to particle movements and where-else possible
+(Alex Long will lead this...I don't computers).
+\item Add lines and continuous spectrum cross sections.
+\item Perform variance reduction techniques for conditional sampling of
+different lines or events of interest
+\item Perform variance reduction techniques or approximations that allows for increased
+parallelism of the algorithm.  This is a hard one...we haven't really thought of
+any good ones yet...so if you guys have ideas...
+
+\end{itemize}
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
