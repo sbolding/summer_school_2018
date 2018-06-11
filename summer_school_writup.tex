@@ -1,0 +1,96 @@
+\documentclass{article}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{Direct Monte Carlo Simulation of 1D Thermal Radiative Transfer}
+\author{AUTHORS}
+
+%\institute{INSTITUTIONS
+%}
+
+%\email{what what, the emails}
+
+% Optional disclaimer: remove this command to hide
+%\disclaimer{Notice: this manuscript is a work of fiction. Any resemblance to
+%actual articles, living or dead, is purely coincidental.}
+
+%%%% packages and definitions (optional)
+\usepackage{graphicx} % allows inclusion of graphics
+\usepackage{booktabs} % nice rules (thick lines) for tables
+\usepackage{microtype} % improves typography for PDF
+\usepackage{comment}
+\usepackage{float}
+\usepackage{amsmath}
+
+\newcommand{\SN}{S$_N$}
+\renewcommand{\vec}[1]{\bm{#1}} %vector is bold italic
+\newcommand{\vd}{\bm{\cdot}} % slightly bold vector dot
+\newcommand{\grad}{\vec{\nabla}} % gradient
+\newcommand{\ud}{\mathop{}\!\mathrm{d}} % upright derivative symbol
+\renewcommand{\eqref}[1]{(\ref{#1})}
+\renewcommand*\thetable{\Roman{table}}
+\usepackage{caption}
+
+\captionsetup[table]{labelsep=period}
+\captionsetup[figure]{labelsep=period}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\deriv}[2]{\frac{\mathrm{d} #1}{\mathrm{d} #2}}
+\newcommand{\pderiv}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\bx}{\mathbf{X}}
+\newcommand{\ba}{\mathbf{A}}
+\newcommand{\by}{\mathbf{Y}}
+\newcommand{\bj}{\mathbf{J}}
+\newcommand{\bs}{\mathbf{s}}
+\newcommand{\B}[1]{\ensuremath{\mathbf{#1}}}
+\newcommand{\Dt}{\Delta t}
+\renewcommand{\d}{\mathrm{d}}
+\newcommand{\mom}[1]{\langle #1 \rangle}
+\newcommand{\xl}{{x_{i-1/2}}}
+\newcommand{\xr}{{x_{i+1/2}}}
+\newcommand{\il}{{i-1/2}}
+\newcommand{\ir}{{i+1/2}}
+\newcommand{\keff}{\ensuremath{k_{\text{eff}}}}
+\newcommand{\sig}[1]{\ensuremath{\Sigma_{#1}}}
+\newcommand{\ra}{\ensuremath{\rightarrow}}
+\newcommand{\dd}{\ensuremath{\mathrm{d}}}
+\renewcommand{\O}{\ensuremath{\mathbf{\Omega}}}
+\newcommand{\adj}{\ensuremath{{}^{\dagger}}}
+\newcommand{\x}{\ensuremath{\mathbf{x}}}
+\newcommand{\T}{\ensuremath{\text{T}}}
+\newcommand{\iso}[2]{$^{#2}$#1}
+\newcommand{\phibar}{\ensuremath{\overline{\phi}}}
+\newcommand{\cur}[1]{\left\{ #1 \right\}}
+\newcommand{\jl}{{j-1/2}}
+\newcommand{\jr}{{j+1/2}}
+\newcommand{\E}[1]{\ensuremath{\operatorname{E}_{#1}}}
+\newcommand{\rface}{\ensuremath{r_{\text{face}}}}
+\newcommand{\FOM}{\ensuremath{\text{FOM}}}
+\newcommand{\ds}[0]{\displaystyle}
+\newcommand{\invcm}[0]{cm$^{-1}$}
+\renewcommand{\u}[1]{\ensuremath{\underline{#1}}}
+\newcommand{\dep}{\ensuremath{\delta\epsilon^{(m)}}}
+\renewcommand{\ss}{\ensuremath{\|s\|}}
+\newcommand{\pos}{{\text{pos}}}
+\newcommand{\phsp}{\ensuremath{\left(\mathbf{r},\mathbf{\Omega},\nu,t\right)}}
+\newcommand{\Del}{\ensuremath{\nabla}}
+
+
+\begin{document}
+
+\section{Introduction}
+
+We will be modeling 1D radiative transfer by performing Monte Carlo sampling of
+the underlying physical distributions.  This method differs from Implict Monte
+Carlo by treating the physical process on an event-by-event basis.  As each
+event happens, the underlying probabilities of each event occuring change,
+because of the nonlinear relation between opacities $\sigma$, temperature $T$, and the
+Planckian emission source $B(\nu,T)$ (which is proportional to temperature to
+the fourth power).  This non-linearity makes this a difficult problem to
+parallel, and the non-linearity of the sampled probability distributions results
+in physics that are difficult to resolve.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\bibliographystyle{ans}
+\bibliography{references}
+\end{document}
+
