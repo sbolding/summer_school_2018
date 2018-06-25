@@ -45,8 +45,6 @@
 \newcommand{\Dt}{\Delta t}
 \renewcommand{\d}{\mathrm{d}}
 \newcommand{\mom}[1]{\langle #1 \rangle}
-\newcommand{\xl}{{x_{i-1/2}}}
-\newcommand{\xr}{{x_{i+1/2}}}
 \newcommand{\il}{{i-1/2}}
 \newcommand{\ir}{{i+1/2}}
 \newcommand{\keff}{\ensuremath{k_{\text{eff}}}}
@@ -60,8 +58,6 @@
 \newcommand{\iso}[2]{$^{#2}$#1}
 \newcommand{\phibar}{\ensuremath{\overline{\phi}}}
 \newcommand{\cur}[1]{\left\{ #1 \right\}}
-\newcommand{\jl}{{j-1/2}}
-\newcommand{\jr}{{j+1/2}}
 \newcommand{\E}[1]{\ensuremath{\operatorname{E}_{#1}}}
 \newcommand{\rface}{\ensuremath{r_{\text{face}}}}
 \newcommand{\FOM}{\ensuremath{\text{FOM}}}
@@ -74,6 +70,16 @@
 \newcommand{\phsp}{\ensuremath{\left(\mathbf{r},\mathbf{\Omega},\nu,t\right)}}
 \newcommand{\Del}{\ensuremath{\nabla}}
 
+% commands specific to this paper
+\newcommand{\jl}{{j-1/2}}
+\newcommand{\jr}{{j+1/2}}
+\newcommand{\xl}{{x_{j-1/2}}}
+\newcommand{\xr}{{x_{j+1/2}}}
+\newcommand{\ncl}{\ensuremath{N_{\text{cells}}}}
+\newcommand{\Rin}{\ensuremath{R_{\text{int}}}}
+\newcommand{\Rem}{\ensuremath{R_{\text{em}}}}
+\newcommand{\Rin}{\ensuremath{R_{\text{int}}}}
+\newcommand{\Remg}{\ensuremath{R_{\text{em}gj}}}
 
 \begin{document}
 \doublespacing
@@ -177,6 +183,76 @@ any good ones yet...so if you guys have ideas...
 
 \end{itemize}
 
+\section{1D Delta-Scattering Algorithm}
+
+The inclusion of delta scattering allows for a decrease in the number of opacity
+look ups and particle movements required to simulate the problem in 1D. Assume
+there are $N$ photons, numbered for $k=1,2,\ldots,N$, multigroup equations for
+$g=1,\ldots,G$ groups, and a 1D spatial domain of cells with cell $j$ defined
+for $\xl \leq x \leq \xr$.  The intensity in the $j$-th cell can be estimated, at some time
+$t$, as:
+
+
+
+
+  The 1D
+algorithm, with delta scattering, is as follows
+
+\begin{enumerate}
+\item Initialize problem by sampling locations of $N$ photons according to
+initial conditions.
+\item Set the current simulation time to $t_{c}=t_0$.
+\item Compute time for transport to non-reflective \emph{domain} boundaries 
+for each photon (or only those photons that are in cells next to boundaries
+probably) as $t_{lkg,k} = t_c + \|x_{bnd} - x_k\|/c$.  
+\item Find minimum time $t_{\lkg}$ = \min\left\{t_{lkg,k\right\}.
+\begin{itemize}
+\item Keep a ordered list of the top few percent of photons that are nearest to having a
+leakage event.  As the photon with $t_{lkg,\min}$ has an absorption/scattering event, we don't
+want to recompute this.
+\item Compute total opacity $\sigma_t(\nu,T)$ for each photon, and compute the
+maximum opacity
+\begin{equation}
+   \sigma_{\max} = \max_k\left\{\sigma_{t,k}(\nu,T)\right\}.
+\end{equation}
+Assuming that opacity is strictly inversely proportional to temperature and only
+heating occurs, only emitted or scattered photons entering a new group can
+increase the value of $\sigma_\max$.  A more general approach is probably needed
+when this assumption is not true.
+\item Compute Planckian emission distributions, for each cell.
+\item Compute event production rates for each type of event
+\begin{itemize}
+  \item Rate of emission
+\begin{equation}
+  \Rem = \sum_{j=1}^{\ncl} \sum_{g} \Remg
+\end{equation}
+where
+\begin{equation}
+  \Remg = \int_{\nu_{g-1/2}^\nu_{g+1/2}} B(\nu,t) 
+\end{equation}
+\item Sample the time of the next event from $i
+\item Sample random number $\xi\sim\text{U}(0,1)$
+\item If $\xi > \frac{\Rint}}{R_{t}}/  if interaction (including 'virtual' interactions) or emission event
+from 
+
+\item If emission:
+ \begin{enumerate}
+
+  \end{enumerate}
+\end{enumerate}
+
+
+\end{enumerate}
+
+\section{Other stuff I need to write up/think about}
+
+\begin{itemize}
+  \item What happens when a new photon is emitted
+  \item What happens if we have cooling (i.e., a cross section increase for an
+active photon)
+  \item How to write probability event for time greater than leakage time.
+  \item How to write 
+\end{itemize}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
