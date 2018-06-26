@@ -186,8 +186,9 @@ any good ones yet...so if you guys have ideas...
 
 The inclusion of delta scattering allows for a decrease in the number of opacity
 look ups and particle movements required to simulate the problem in 1D. Assume
-there are initially $N$ photons, numbered for $k=1,2,\ldots,N$, multigroup equations for
-$g=1,\ldots,G$ groups, and a 1D spatial domain of cells with cell $j$ defined
+there are initially $N$ photons, numbered for $k=1,2,\ldots,N$, multigroup opacities for
+$g=1,\ldots,G$ groups (this is written in terms of multigroup opacities with
+continuous frequency photons, but that may change), and a 1D spatial domain of cells with cell $j$ defined
 for $\xl \leq x \leq \xr$.  For now, we will use a piecewise constant representation of the temperature, i.e.,
 \begin{equation}
  T(x,t) = T_j(t), \quad \xl < x < \xr.
@@ -195,7 +196,9 @@ for $\xl \leq x \leq \xr$.  For now, we will use a piecewise constant representa
 We will also assume a boundary source with a vacuum boundary condition on one
 side of the domain (the left side by convention), and a reflective boundary on
 the other side.  To produce a source that is equivalent to an isotropic angular
-flux, a so-called ``cosine`` distribution is used for the source distribution.
+flux, a so-called ``cosine'' distribution is used for the angular distribution of the
+source.
+
  Although not directly needed for calculations, the volume-averaged energy density in the $j$-th cell can be estimated, at some time
 $t$, as:
 \begin{equation}
@@ -205,6 +208,7 @@ $t$, as:
 where $w_k$ is the weight of the $k$-th particle (assumed 1 for now), in cell
 $j$ (the inclusion of $2\pi$ depends on how your equations are normalized). This
 quantity is useful for comparing to IMC.
+
 
 The 1D algorithm, with delta scattering, is as follows
 \begin{enumerate}
@@ -216,17 +220,17 @@ initially), producing an initial condition of $I(x,\mu,t_0)
 \item Set the current simulation time to $t_{c}=t_0$.
 \item Compute time for transport to non-reflective \emph{domain} boundaries 
 for each photon (or only those photons that are in cells next to boundaries
-probably) as $t_{lkg,k} = t_{c,k} + \|x_{bnd} - x_k\|/c$.  
+probably) as $t_{lkg,k} = t_{c,k} + |x_{bnd} - x_k|/c$.  
 \item Define leakage time as $t_{lkg} = \min\left\{t_{lkg,k}\right\}$.
 \begin{itemize}
 \item Keep a ordered list of the top few percent of photons that are nearest to having a
-leakage event.  As the photon with $t_{lkg,\min}$ has an absorption/scattering event, we don't
+leakage event.  If the photon with $t_{lkg,\min}$ has an absorption/scattering event, we don't
 want to recompute this.  
 \end{itemize}
-\item Compute total opacity $\sigma_t(\nu,T)$ for each photon, and compute the
+\item Compute total opacity $\sigma_t(\nu_g,T)$ for each photon, and compute the
 maximum opacity
 \begin{equation}
-   \sigma_{\max} = \max_k\left\{\sigma_{t,k}(\nu,T)\right\}.
+   \sigma_{\max} = \max_k\left\{\sigma_{t,k}(\nu_g,T)\right\}.
 \end{equation}
 Although typically only heating occurs (producing a decrease in opacity), on an
 event-by-event basis $T$ can decrease locally.  Thus, it is necessary to add a
@@ -237,11 +241,11 @@ $\sigma_{\max}$ by a few \% for now.
 \begin{itemize}
   \item Rate of emission
 \begin{equation}
-  \Rem = \sum_{j=1}^{\ncl} \sum_{g} \Remg
+  \Rem = \sum_{j=1}^{\ncl} \sum_{g} \frac{4\pi\Delta x_j}{h \delta \nu_g} \sigma_{a,g}(T_j)B_g(T_j)
 \end{equation}
 where
 \begin{equation}
-  \Remg = \int_{\nu_{g-1/2}}^{\nu_{g+1/2}} B(\nu,t)  d \nu
+  B_g = \int_{\nu_{g-1/2}}^{\nu_{g+1/2}} B(\nu,T)  d \nu
 \end{equation}
   \item Rate of source production (assuming a constant, $\mu$-weighted boundary
 source $S_b$)
@@ -250,23 +254,41 @@ source $S_b$)
 \end{equation}
 where $S_b$ represents the total number of neutrons emitted per second. (I need
 to double check the half, but this is easy to fix later).
-  \item Rate of interaction (including `virtual` interactions)
-\end{itemize}
-\item Sample the time of the next event from
+  \item Rate of interaction (including real and `virtual` interactions)
 \begin{equation}
- p(t) = R_t e^{-R_t (t-t_c)} + \delta^+(t-t_{lkg})e^{-R_t t}, \quad   t > t_c
+  \Rin = N \sigma_{\max} c
 \end{equation}
+\end{itemize}
+\item \label{itm:time_loop} Sample the time of the next event $t_{ev}$ from
+\begin{equation}
+p(t) = \left\{\begin{matrix}
+          R_t e^{-R_t (t-t_c)}, & t_c < t < t_{lkg}   \\ 
+          \delta(t-t_{lkg})e^{-R_t t}, & t \geq t_{lkg} 
+\end{matrix}\right.
+\end{equation}
+\item Advance the problem time to event time $t_c \rightarrow t_{ev}$
+\item If $t_c = t_{lkg}$ then
+\begin{itemize}
+  \item remove the photon that had the leakage
+  \item $N\leftarrow N-1$.
+\end{itemize}
 \item Sample a random number $\xi\sim\text{U}(0,1)$
+\begin{itemize}
 \item If $\xi < \frac{\Rin}{R_{t}}$, then an interaction (including 'virtual'
 interactions) event has occured. Go to~\ref{itm:interaction}.
 \item Else if $\xi < \frac{\Rin+R_s}{R_t}$, then a source event has occured.
 Go to~\ref{itm:source}.
 \item Otherwise an emission event has occured, go to \label{itm:emission}.
+\end{itemize}
 \item \label{itm:emission} An emission has occured:
  \begin{enumerate}
-    \item
+    \item Sample which cell to emit:
+     \begin{equation}
+        p_j = \frac{\sum_{g} B_{gj}}{\sum_g B_{gj}}, \quad j=1,2,\ldots,\ncl
+      \end{equation}
+    \item Sample the frequency of the emitted photon
+    \item Increase photon count $N\rightarrow N+1$.
   \end{enumerate}
-
 \item \label{itm:source} A source particle has been produced
 \begin{enumerate}
     \item Sample frequency from specified distribution
@@ -276,13 +298,29 @@ Go to~\ref{itm:source}.
     \end{equation}
     \item Increase number of photons, i.e., $N\rightarrow N+1$.
 \end{enumerate}
+\item \label{itm:interaction} An interaction has occured
+\begin{enumerate}
+    \item Choose which photon had the event from the PDF
+     \begin{equation}
+      p_{int,k} = \frac{\hat\sigma_{t,k}}{\sum_{k} \hat\sigma_{t,k}} \equiv
+\frac{\sigma_{\max}}{\sum_{k} \sigma_{\max}} = \frac{1}{N} ,
+     \end{equation}
+     i.e., uniformly sample the $k$-th photon.
+    \item Move this photon to it's new location, i.e., $x_k \leftarrow x_k + \mu c
+(t_c - t_{c,k})$, where $t_{c,k}$ is the time this photon last had an event.
+    \item Look up the real cross section for this photon $\sigma_{t,k}(\nu_k,T_k)$,
+where $T_k$ is the temperature of the cell \emph{now} containing the $k$-th photon.
+    \item Sample a random num $\eta$
+    \item If $\eta \geq \sigma_{t,k}/\sigma_{\max}$, a virtual collision, go
+to~\ref{itm:time_loop}.
+    \item Else, sample a collision and update properties 
+    \item If absorption, \item $N\leftarrow N-1$, contribute energy to the cell, increasing $T_k$
+    \item If scattering, sample new angle and frequency, check that the new cross
+           section is not larger than $\sigma_{\max}$
+\end{enumerate}
 \end{enumerate}
  
-\section{General Comments}
-
-As you may have noticed, as 
-
-\section{Other stuff I need to write up/think about}
+\section{Other stuff to write up/think about}
 
 \begin{itemize}
  \item
@@ -290,7 +328,7 @@ As you may have noticed, as
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\bibliographystyle{ans}
+\bibliographystyle{acm}
 \bibliography{references}
 \end{document}
 
