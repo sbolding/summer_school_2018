@@ -78,7 +78,6 @@
 \newcommand{\ncl}{\ensuremath{N_{\text{cells}}}}
 \newcommand{\Rin}{\ensuremath{R_{\text{int}}}}
 \newcommand{\Rem}{\ensuremath{R_{\text{em}}}}
-\newcommand{\Rin}{\ensuremath{R_{\text{int}}}}
 \newcommand{\Remg}{\ensuremath{R_{\text{em}gj}}}
 
 \begin{document}
@@ -187,39 +186,53 @@ any good ones yet...so if you guys have ideas...
 
 The inclusion of delta scattering allows for a decrease in the number of opacity
 look ups and particle movements required to simulate the problem in 1D. Assume
-there are $N$ photons, numbered for $k=1,2,\ldots,N$, multigroup equations for
+there are initially $N$ photons, numbered for $k=1,2,\ldots,N$, multigroup equations for
 $g=1,\ldots,G$ groups, and a 1D spatial domain of cells with cell $j$ defined
-for $\xl \leq x \leq \xr$.  The intensity in the $j$-th cell can be estimated, at some time
+for $\xl \leq x \leq \xr$.  For now, we will use a piecewise constant representation of the temperature, i.e.,
+\begin{equation}
+ T(x,t) = T_j(t), \quad \xl < x < \xr.
+\end{equation}
+We will also assume a boundary source with a vacuum boundary condition on one
+side of the domain (the left side by convention), and a reflective boundary on
+the other side.  To produce a source that is equivalent to an isotropic angular
+flux, a so-called ``cosine`` distribution is used for the source distribution.
+ Although not directly needed for calculations, the volume-averaged energy density in the $j$-th cell can be estimated, at some time
 $t$, as:
+\begin{equation}
+ E_{rj}(t) = \frac{2\pi}{c} \frac{1}{\Delta x_j} \int\limits_{-1}^1 \d \mu \int\limits_0^\infty \d \nu \int\limits_\xl^\xr \d x \; I(\nu,x,\Omega,t)  
+		\simeq \sum_k w_k c h \nu_k, \text{ for} \;\;\xl < x < \xr,
+\end{equation}
+where $w_k$ is the weight of the $k$-th particle (assumed 1 for now), in cell
+$j$ (the inclusion of $2\pi$ depends on how your equations are normalized). This
+quantity is useful for comparing to IMC.
 
-
-
-
-  The 1D
-algorithm, with delta scattering, is as follows
-
+The 1D algorithm, with delta scattering, is as follows
 \begin{enumerate}
 \item Initialize problem by sampling locations of $N$ photons according to
-initial conditions.
+initial condition, i.e., $I(x,\mu,t_0)$.  Typically the radiation is in
+equilibrium with the material (which is assumed to have no temperature gradient
+initially), producing an initial condition of $I(x,\mu,t_0)
+= acT^4(t_0)/(4\pi)$. 
 \item Set the current simulation time to $t_{c}=t_0$.
 \item Compute time for transport to non-reflective \emph{domain} boundaries 
 for each photon (or only those photons that are in cells next to boundaries
-probably) as $t_{lkg,k} = t_c + \|x_{bnd} - x_k\|/c$.  
-\item Find minimum time $t_{\lkg}$ = \min\left\{t_{lkg,k\right\}.
+probably) as $t_{lkg,k} = t_{c,k} + \|x_{bnd} - x_k\|/c$.  
+\item Define leakage time as $t_{lkg} = \min\left\{t_{lkg,k}\right\}$.
 \begin{itemize}
 \item Keep a ordered list of the top few percent of photons that are nearest to having a
 leakage event.  As the photon with $t_{lkg,\min}$ has an absorption/scattering event, we don't
-want to recompute this.
+want to recompute this.  
+\end{itemize}
 \item Compute total opacity $\sigma_t(\nu,T)$ for each photon, and compute the
 maximum opacity
 \begin{equation}
    \sigma_{\max} = \max_k\left\{\sigma_{t,k}(\nu,T)\right\}.
 \end{equation}
-Assuming that opacity is strictly inversely proportional to temperature and only
-heating occurs, only emitted or scattered photons entering a new group can
-increase the value of $\sigma_\max$.  A more general approach is probably needed
-when this assumption is not true.
-\item Compute Planckian emission distributions, for each cell.
+Although typically only heating occurs (producing a decrease in opacity), on an
+event-by-event basis $T$ can decrease locally.  Thus, it is necessary to add a
+small fudge factor.  We could try to bound this, but lets just increase
+$\sigma_{\max}$ by a few \% for now.  
+\item Compute Planckian emission distributions, for each cell and energy group.
 \item Compute event production rates for each type of event
 \begin{itemize}
   \item Rate of emission
@@ -228,30 +241,51 @@ when this assumption is not true.
 \end{equation}
 where
 \begin{equation}
-  \Remg = \int_{\nu_{g-1/2}^\nu_{g+1/2}} B(\nu,t) 
+  \Remg = \int_{\nu_{g-1/2}}^{\nu_{g+1/2}} B(\nu,t)  d \nu
 \end{equation}
-\item Sample the time of the next event from $i
-\item Sample random number $\xi\sim\text{U}(0,1)$
-\item If $\xi > \frac{\Rint}}{R_{t}}/  if interaction (including 'virtual' interactions) or emission event
-from 
-
-\item If emission:
+  \item Rate of source production (assuming a constant, $\mu$-weighted boundary
+source $S_b$)
+\begin{equation}
+  R_s = \frac{S_b}{2} 
+\end{equation}
+where $S_b$ represents the total number of neutrons emitted per second. (I need
+to double check the half, but this is easy to fix later).
+  \item Rate of interaction (including `virtual` interactions)
+\end{itemize}
+\item Sample the time of the next event from
+\begin{equation}
+ p(t) = R_t e^{-R_t (t-t_c)} + \delta^+(t-t_{lkg})e^{-R_t t}, \quad   t > t_c
+\end{equation}
+\item Sample a random number $\xi\sim\text{U}(0,1)$
+\item If $\xi < \frac{\Rin}{R_{t}}$, then an interaction (including 'virtual'
+interactions) event has occured. Go to~\ref{itm:interaction}.
+\item Else if $\xi < \frac{\Rin+R_s}{R_t}$, then a source event has occured.
+Go to~\ref{itm:source}.
+\item Otherwise an emission event has occured, go to \label{itm:emission}.
+\item \label{itm:emission} An emission has occured:
  \begin{enumerate}
-
+    \item
   \end{enumerate}
-\end{enumerate}
 
-
+\item \label{itm:source} A source particle has been produced
+\begin{enumerate}
+    \item Sample frequency from specified distribution
+    \item Sample $\mu$ from the PDF
+    \begin{equation}
+      p(\mu) = 2\mu, \quad 0\leq\mu\leq 1
+    \end{equation}
+    \item Increase number of photons, i.e., $N\rightarrow N+1$.
 \end{enumerate}
+\end{enumerate}
+ 
+\section{General Comments}
+
+As you may have noticed, as 
 
 \section{Other stuff I need to write up/think about}
 
 \begin{itemize}
-  \item What happens when a new photon is emitted
-  \item What happens if we have cooling (i.e., a cross section increase for an
-active photon)
-  \item How to write probability event for time greater than leakage time.
-  \item How to write 
+ \item
 \end{itemize}
 
 
