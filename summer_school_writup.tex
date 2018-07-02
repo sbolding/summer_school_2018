@@ -81,7 +81,7 @@
 \newcommand{\Remg}{\ensuremath{R_{\text{em}gj}}}
 
 \begin{document}
-\doublespacing
+\onehalfspacing
 
 \section{Introduction}
 
@@ -184,6 +184,8 @@ any good ones yet...so if you guys have ideas...
 
 \section{1D Delta-Scattering Algorithm}
 
+\subsection{Problem Description}
+
 The inclusion of delta scattering allows for a decrease in the number of opacity
 look ups and particle movements required to simulate the problem in 1D. Assume
 there are initially $N$ photons, numbered for $k=1,2,\ldots,N$, multigroup opacities for
@@ -193,30 +195,82 @@ for $\xl \leq x \leq \xr$.  For now, we will use a piecewise constant representa
 \begin{equation}
  T(x,t) = T_j(t), \quad \xl < x < \xr.
 \end{equation}
+
+For the initial conditions, typically the radiation is in
+equilibrium with the material at a constant temperature.
+The initial condition is thus 
+\begin{equation}
+  I(\mu,\nu,t_0) =  B(\nu,T_0),
+\end{equation}
+an angularly isotropic distribution that for grey equations reduces to $I(\mu,t_0) =
+acT^4(t_0)/(4\pi)$ (note that the units of $B(\nu,t)$ include str$^{-1}$; the $1/4\pi$
+appears as a result of integration over frequency).  We
+are interested in the initial condition of the photon density $n(\mu,\nu,t_0)=
+I(\mu,\nu,t_0)/(ch\nu)$.
+Thus, particle angle is sampled isotropically, and the particle frequency is sampled
+from
+\begin{equation}
+ \label{eq:planck_over_hnu}
+  p(\nu) = \frac{\ds \frac{B(\nu,T_0)}{h\nu}}{\int_{0}^\infty\ds
+\frac{B(\nu,T_0)}{h\nu}}.
+\end{equation}
+I have uploaded sampled code for sampling from a non-dimensionalized version of this
+equation in the python folder on gitlab.  After sampling the non-dimensionalized
+frequency $\nu'$, use the relation $\nu'=h\nu/T$ to produce the dimensionalized
+sample of $\nu$, assuming $T$ is in units of keV.
+
 We will also assume a boundary source with a vacuum boundary condition on one
 side of the domain (the left side by convention), and a reflective boundary on
-the other side.  To produce a source that is equivalent to an isotropic angular
-flux, a so-called ``cosine'' distribution is used for the angular distribution of the
-source.
+the other side.  To produce a boundary source that is equivalent to an isotropic
+incident angular intensity, a so-called ``cosine'' distribution is used for the
+source angular distribution; the direction cosine is sampled from
+    \begin{equation}
+      p(\mu) = 2\mu, \quad 0\leq\mu\leq 1
+    \end{equation}
+assuming a source on the left of the domain.  We generally model the frequency
+spectrum of boundary sources as a black body spectrum (i.e., a Planckian), with a
+specified temperature.  Thus, because of the same arguments as before, the particle frequency is sampled from
+Eq.~\eqref{eq:planck_over_hnu}.  
 
- Although not directly needed for calculations, the volume-averaged energy density in the $j$-th cell can be estimated, at some time
-$t$, as:
+  The magnitude of the boundary source must produce the correct amount of energy per
+unit time, per unit area (the per unit area is arbitrary here since we are in 1D).
+Thus, assuming the energy rate of the source is specified as $Q(\nu)$ with units
+of Jks s$^{-1}$ Hz$^{-1}$ cm$^{-2}$, the total number of photons from this source is
+$S_b = \int_{0}^{\infty}\int_0^1 \mu Q(\nu)/(h\nu) \,\d\mu \d \nu$. In terms of a planckian emission source at some fixed
+temperature $T_b$, the total photon source rate is
+\begin{align} 
+ S_b & = 2\pi \int_0^\infty \d \nu \int_0^1 \d \mu \mu \frac{B(\nu,T_b)}{h\nu} \\
+     & = \pi \int_0^\infty \d \nu \frac{B(\nu,T_b)}{h\nu} 
+\end{align}
+which can be shown to be
+\begin{equation}
+ S_b = \frac{4 \pi \zeta(3) k^3}{h^3 c^2} T_b^3 = \frac{15 a c}{k 2\pi^4} T_b^3
+\end{equation}
+with $T_b$ in units of keV (someeone should double check the math and units of this
+calculation to make sure the $k$ in the denominator is correct in second expression. A good derivation of this integration
+technique is at http://www.spectralcalc.com /blackbody/integrate\_planck.html).  Note
+that this expression has units of photons $s^{-1} \text{ cm}^{-2}$, as desired.
+When integrating over
+finite frequency bounds, e.g., for multi-group approximations, numerical approximation is
+required.  There is not a closed form for
+$\zeta(3)$, but it is approximately 1.202056903159594285.
+
+ Although not directly needed for calculations, the volume-averaged energy
+density in the $j$-th cell can be estimated, at some time $t$, as:
 \begin{equation}
  E_{rj}(t) = \frac{2\pi}{c} \frac{1}{\Delta x_j} \int\limits_{-1}^1 \d \mu \int\limits_0^\infty \d \nu \int\limits_\xl^\xr \d x \; I(\nu,x,\Omega,t)  
-		\simeq \sum_k w_k c h \nu_k, \text{ for} \;\;\xl < x < \xr,
+		\simeq \sum_k w_k(t) h \nu_k(t), \text{ for} \;\;\xl < x_k < \xr \cap t_k=t,
 \end{equation}
-where $w_k$ is the weight of the $k$-th particle (assumed 1 for now), in cell
-$j$ (the inclusion of $2\pi$ depends on how your equations are normalized). This
-quantity is useful for comparing to IMC.
+where $w_k$ is the weight of the $k$-th particle (assumed 1 for this derivation, and 
+assuming each particle is in number space rather than an energy/intensity space, which may change in the future).
+This quantity is useful for comparing to IMC.
 
+\subsection{Algorithm}
 
 The 1D algorithm, with delta scattering, is as follows
 \begin{enumerate}
 \item Initialize problem by sampling locations of $N$ photons according to
-initial condition, i.e., $I(x,\mu,t_0)$.  Typically the radiation is in
-equilibrium with the material (which is assumed to have no temperature gradient
-initially), producing an initial condition of $I(x,\mu,t_0)
-= acT^4(t_0)/(4\pi)$. 
+initial condition, i.e., $n(x,\nu,\mu,t_0)$.  
 \item Set the current simulation time to $t_{c}=t_0$.
 \item Compute time for transport to non-reflective \emph{domain} boundaries 
 for each photon (or only those photons that are in cells next to boundaries
@@ -227,37 +281,41 @@ probably) as $t_{lkg,k} = t_{c,k} + |x_{bnd} - x_k|/c$.
 leakage event.  If the photon with $t_{lkg,\min}$ has an absorption/scattering event, we don't
 want to recompute this.  
 \end{itemize}
-\item Compute total opacity $\sigma_t(\nu_g,T)$ for each photon, and compute the
+\item Compute total opacity $\sigma_t(\nu_g,T)$ for each material and group, and compute the
 maximum opacity
 \begin{equation}
-   \sigma_{\max} = \max_k\left\{\sigma_{t,k}(\nu_g,T)\right\}.
+   \sigma_{\max} = \max_j\left\{\max_g\left\{\sigma_{t,k}(\nu_g,T): \quad
+g=1,2,\ldots,G\right\}: j=1,2,\ldots,\ncl \right\}.
 \end{equation}
-Although typically only heating occurs (producing a decrease in opacity), on an
-event-by-event basis $T$ can decrease locally.  Thus, it is necessary to add a
-small fudge factor.  We could try to bound this, but lets just increase
-$\sigma_{\max}$ by a few \% for now.  
-\item Compute Planckian emission distributions, for each cell and energy group.
-\item Compute event production rates for each type of event
+\item Compute production rates for each type of event
 \begin{itemize}
   \item Rate of emission
 \begin{equation}
-  \Rem = \sum_{j=1}^{\ncl} \sum_{g} \frac{4\pi\Delta x_j}{h \delta \nu_g} \sigma_{a,g}(T_j)B_g(T_j)
+  \Rem = \sum_{j=1}^{\ncl} \sum_{g} \frac{4\pi\Delta x_j}{h \nu_g} \sigma_{a,g}(T_j)B_g(T_j)
 \end{equation}
-where
+where $\nu_g = \nu_{g-1/2} + \Delta \nu/2$, etc.
+\begin{itemize}
+ \item This can hopefully use the infrastructure that Alex will point you to from
+Jayenne.  Since we have the $1/h\nu$ factor this may require some finagling (my
+current plan is to do importance sampling, but this algorithm does not include
+particle weights yet). I don't
+currently see a way around midpoint rule approximation to this integral, as shown
+above.  I think it may be OK as long as we are still solving continuous frequency
+equations, and just approximating this integral with the approximation, depending on
+how Jayenne does this.
+\end{itemize}
+  \item Rate of source production (see previous section for definition of this
+quantity)
 \begin{equation}
-  B_g = \int_{\nu_{g-1/2}}^{\nu_{g+1/2}} B(\nu,T)  d \nu
+  R_s = S_b
 \end{equation}
-  \item Rate of source production (assuming a constant, $\mu$-weighted boundary
-source $S_b$)
-\begin{equation}
-  R_s = \frac{S_b}{2} 
-\end{equation}
-where $S_b$ represents the total number of neutrons emitted per second. (I need
+where $S_b$ represents the total number of photons emitted per second. (I need
 to double check the half, but this is easy to fix later).
   \item Rate of interaction (including real and `virtual` interactions)
 \begin{equation}
   \Rin = N \sigma_{\max} c
 \end{equation}
+  \item Total rate of interaction: $R_t = \Rin + R_s + \Rem$
 \end{itemize}
 \item \label{itm:time_loop} Sample the time of the next event $t_{ev}$ from
 \begin{equation}
@@ -271,31 +329,30 @@ p(t) = \left\{\begin{matrix}
 \begin{itemize}
   \item remove the photon that had the leakage
   \item $N\leftarrow N-1$.
+  \item Update $t_{lkg}$ to new minimum time (updating the list as necessary)
+  \item Go to step~\ref{itm:time_loop}
 \end{itemize}
-\item Sample a random number $\xi\sim\text{U}(0,1)$
+\item Else, sample a random number $\xi\sim\text{U}(0,1)$
 \begin{itemize}
 \item If $\xi < \frac{\Rin}{R_{t}}$, then an interaction (including 'virtual'
-interactions) event has occured. Go to~\ref{itm:interaction}.
+interactions) event has occured. Go to step~\ref{itm:interaction}.
 \item Else if $\xi < \frac{\Rin+R_s}{R_t}$, then a source event has occured.
-Go to~\ref{itm:source}.
-\item Otherwise an emission event has occured, go to \label{itm:emission}.
+Go to step~\ref{itm:source}.
+\item Otherwise an emission event has occured, go to~\ref{itm:emission}.
 \end{itemize}
 \item \label{itm:emission} An emission has occured:
  \begin{enumerate}
-    \item Sample which cell to emit:
+    \item Sample which cell to emit a photon from, via pmf
      \begin{equation}
         p_j = \frac{\sum_{g} B_{gj}}{\sum_g B_{gj}}, \quad j=1,2,\ldots,\ncl
       \end{equation}
     \item Sample the frequency of the emitted photon
-    \item Increase photon count $N\rightarrow N+1$.
+    \item Update temperature: $T_j \rightarrow T_j - \frac{h \nu_{N+1}}{C_v \Delta x}$
+    \item Increase photon count: $N\rightarrow N+1$.
   \end{enumerate}
 \item \label{itm:source} A source particle has been produced
 \begin{enumerate}
-    \item Sample frequency from specified distribution
-    \item Sample $\mu$ from the PDF
-    \begin{equation}
-      p(\mu) = 2\mu, \quad 0\leq\mu\leq 1
-    \end{equation}
+    \item Sample frequency and angle from $S_b(\mu,\nu)$.
     \item Increase number of photons, i.e., $N\rightarrow N+1$.
 \end{enumerate}
 \item \label{itm:interaction} An interaction has occured
@@ -310,20 +367,24 @@ Go to~\ref{itm:source}.
 (t_c - t_{c,k})$, where $t_{c,k}$ is the time this photon last had an event.
     \item Look up the real cross section for this photon $\sigma_{t,k}(\nu_k,T_k)$,
 where $T_k$ is the temperature of the cell \emph{now} containing the $k$-th photon.
-    \item Sample a random num $\eta$
+    \item Sample a random number $\eta$
     \item If $\eta \geq \sigma_{t,k}/\sigma_{\max}$, a virtual collision, go
 to~\ref{itm:time_loop}.
     \item Else, sample a collision and update properties 
-    \item If absorption, \item $N\leftarrow N-1$, contribute energy to the cell, increasing $T_k$
-    \item If scattering, sample new angle and frequency, check that the new cross
-           section is not larger than $\sigma_{\max}$
+    \begin{itemize}
+    \item If absorption, $N\leftarrow N-1$, contribute energy, increasing $T_k$
+    \item If scattering, sample new angle and frequency
+     \end{itemize}
 \end{enumerate}
+     \item Go to step~\ref{itm:time_loop}, until $t_{ev}=t_end$.  At that point,
+update all particle positions to $x(t_{end})$
 \end{enumerate}
  
-\section{Other stuff to write up/think about}
+\section{Stuff to figure out and resolve}
 
 \begin{itemize}
- \item
+ \item The number of photons created as an initial condition, and the energy represented by those photonsas an initial condition directly affects (and their
+freqency) directly affects the amount of energy in the system
 \end{itemize}
 
 
